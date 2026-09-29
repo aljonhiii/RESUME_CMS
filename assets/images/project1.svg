@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="520" viewBox="0 0 800 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="520" rx="20" fill="#E6E5E0"/>
+  <!-- App Window Container -->
+  <rect x="40" y="40" width="720" height="440" rx="16" fill="#F5F4F0" stroke="#181816" stroke-opacity="0.12" stroke-width="2"/>
+  <!-- Top Bar -->
+  <path d="M40 56C40 47.1634 47.1634 40 56 40H744C752.837 40 760 47.1634 760 56V80H40V56Z" fill="#181816"/>
+  <circle cx="64" cy="60" r="5" fill="#FF5F56"/>
+  <circle cx="80" cy="60" r="5" fill="#FFBD2E"/>
+  <circle cx="96" cy="60" r="5" fill="#27C93F"/>
+  <text x="400" y="64" fill="#E6E5E0" font-family="sans-serif" font-size="12" font-weight="600" text-anchor="middle" letter-spacing="1">ZAMBOANGA TOUR GUIDE BOOKING SYSTEM</text>
+  
+  <!-- Sidebar -->
+  <rect x="60" y="100" width="180" height="360" rx="10" fill="#5B695C"/>
+  <text x="80" y="135" fill="#F5F4F0" font-family="sans-serif" font-size="14" font-weight="bold">EXPLORE ZAMBOANGA</text>
+  <rect x="75" y="160" width="150" height="32" rx="6" fill="#F5F4F0" fill-opacity="0.2"/>
+  <text x="90" y="181" fill="#F5F4F0" font-family="sans-serif" font-size="12">🗺️ Fort Pilar Tour</text>
+  <rect x="75" y="202" width="150" height="32" rx="6" fill="#F5F4F0" fill-opacity="0.1"/>
+  <text x="90" y="223" fill="#F5F4F0" font-family="sans-serif" font-size="12">🏝️ Santa Cruz Island</text>
+  <rect x="75" y="244" width="150" height="32" rx="6" fill="#F5F4F0" fill-opacity="0.1"/>
+  <text x="90" y="265" fill="#F5F4F0" font-family="sans-serif" font-size="12">⛵ Vinta Regatta</text>
+  
+  <rect x="75" y="380" width="150" height="40" rx="8" fill="#181816"/>
+  <text x="150" y="405" fill="#F5F4F0" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Book Guide Now →</text>
+
+  <!-- Main Content Grid -->
+  <rect x="260" y="100" width="480" height="170" rx="10" fill="#FFFFFF" stroke="#181816" stroke-opacity="0.08"/>
+  <text x="280" y="130" fill="#181816" font-family="sans-serif" font-size="16" font-weight="bold">Featured Local Guide: Maria Santos</text>
+  <text x="280" y="152" fill="#555555" font-family="sans-serif" font-size="12">Certified Cultural & Heritage Specialist • 4.9 ★ (128 reviews)</text>
+  <rect x="280" y="170" width="100" height="26" rx="13" fill="#5B695C" fill-opacity="0.15"/>
+  <text x="330" y="187" fill="#5B695C" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Chavacano / EN</text>
+  <rect x="390" y="170" width="120" height="26" rx="13" fill="#5B695C" fill-opacity="0.15"/>
+  <text x="450" y="187" fill="#5B695C" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">History Specialist</text>
+
+  <rect x="280" y="210" width="440" height="42" rx="8" fill="#F5F4F0"/>
+  <text x="300" y="235" fill="#181816" font-family="sans-serif" font-size="12" font-weight="500">Selected Date: Oct 12, 2026 | Slots: 3 Available | Status: Verified</text>
+
+  <!-- Two Cards Below -->
+  <rect x="260" y="285" width="230" height="175" rx="10" fill="#FFFFFF" stroke="#181816" stroke-opacity="0.08"/>
+  <text x="275" y="315" fill="#181816" font-family="sans-serif" font-size="14" font-weight="bold">Booking Calendar</text>
+  <rect x="275" y="330" width="200" height="110" rx="6" fill="#E6E5E0" fill-opacity="0.5"/>
+  <text x="375" y="390" fill="#5B695C" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">PHP PDO Calendar API</text>
+
+  <rect x="510" y="285" width="230" height="175" rx="10" fill="#FFFFFF" stroke="#181816" stroke-opacity="0.08"/>
+  <text x="525" y="315" fill="#181816" font-family="sans-serif" font-size="14" font-weight="bold">Tourist Reviews</text>
+  <rect x="525" y="330" width="200" height="110" rx="6" fill="#E6E5E0" fill-opacity="0.5"/>
+  <text x="625" y="390" fill="#5B695C" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Verified Feedback</text>
+</svg>

@@ -1,0 +1,45 @@
+<svg width="480" height="640" viewBox="0 0 480 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="240" y1="0" x2="240" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5B695C"/>
+      <stop offset="1" stop-color="#3E4A3F"/>
+    </linearGradient>
+    <linearGradient id="faceGrad" x1="240" y1="160" x2="240" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E5C3A6"/>
+      <stop offset="1" stop-color="#D4AA88"/>
+    </linearGradient>
+    <linearGradient id="shirtGrad" x1="240" y1="360" x2="240" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CBB593"/>
+      <stop offset="1" stop-color="#8F7C5D"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Arch Container Background -->
+  <path d="M0 160C0 71.6344 71.6344 0 160 0H320C408.366 0 480 71.6344 480 160V640H0V160Z" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Lighting Glow -->
+  <circle cx="240" cy="240" r="180" fill="#7A897B" fill-opacity="0.25"/>
+
+  <!-- Developer Figure / Portrait Silhouette Structure -->
+  <!-- Torso / Jacket -->
+  <path d="M120 440C120 380 160 360 240 360C320 360 360 380 360 440V640H120V440Z" fill="url(#shirtGrad)"/>
+  <path d="M180 360L240 440L300 360V640H180V360Z" fill="#181816" fill-opacity="0.15"/>
+
+  <!-- Neck -->
+  <rect x="215" y="310" width="50" height="60" rx="10" fill="#D4AA88"/>
+
+  <!-- Head / Face -->
+  <ellipse cx="240" cy="230" rx="65" ry="85" fill="url(#faceGrad)"/>
+
+  <!-- Hair -->
+  <path d="M170 210C170 140 220 135 240 135C260 135 310 140 310 210C300 160 270 150 240 150C210 150 180 160 170 210Z" fill="#181816"/>
+
+  <!-- Glasses -->
+  <rect x="190" y="210" width="42" height="32" rx="6" stroke="#181816" stroke-width="4" fill="none"/>
+  <rect x="248" y="210" width="42" height="32" rx="6" stroke="#181816" stroke-width="4" fill="none"/>
+  <line x1="232" y1="225" x2="248" y2="225" stroke="#181816" stroke-width="4"/>
+
+  <!-- Subtle Developer Badge Tag -->
+  <rect x="160" y="560" width="160" height="36" rx="18" fill="#181816" fill-opacity="0.6"/>
+  <text x="240" y="583" fill="#F5F4F0" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle" letter-spacing="1">ALJON REYES</text>
+</svg>
