@@ -1,0 +1,20 @@
+# Dependencies
+/vendor/
+node_modules/
+
+# Local configuration
+/config/db.php
+
+# Developer & Temporary Scripts
+/scripts/
+/agent-skills/
+
+# Uploaded Images (We ignore uploads so the repo doesn't get bloated)
+/assets/images/project_upload_*.png
+/assets/images/project_upload_*.jpg
+/assets/images/project_upload_*.jpeg
+/assets/images/project_upload_*.gif
+
+# OS generated files
+.DS_Store
+Thumbs.db

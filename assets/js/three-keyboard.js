@@ -237,13 +237,23 @@ function init3DKeyboard() {
   // Scene setup
   const scene = new THREE.Scene();
 
-  // Camera setup - Balanced 3D perspective with generous padding on all sides
+  // Camera setup - Balanced 3D perspective with adaptive viewport scaling
   const width = container.clientWidth || 650;
   const height = container.clientHeight || 480;
   const aspect = width / height;
   const camera = new THREE.PerspectiveCamera(30, aspect, 0.1, 1000);
-  camera.position.set(0, 8.6, 9.6);
-  camera.lookAt(0, 0.25, 0);
+  
+  function updateCameraViewportDistance(w) {
+    if (w < 480) {
+      camera.position.set(0, 10.5, 12.2);
+    } else if (w < 768) {
+      camera.position.set(0, 9.4, 10.8);
+    } else {
+      camera.position.set(0, 8.6, 9.6);
+    }
+    camera.lookAt(0, 0.25, 0);
+  }
+  updateCameraViewportDistance(window.innerWidth);
 
   // Renderer setup
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -701,6 +711,19 @@ function init3DKeyboard() {
     targetRotX = 0.32 + mouseY * 0.08;
   });
 
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) {
+      const windowHalfX = window.innerWidth / 2;
+      const windowHalfY = window.innerHeight / 2;
+      const touchX = (e.touches[0].clientX - windowHalfX) / windowHalfX;
+      const touchY = (e.touches[0].clientY - windowHalfY) / windowHalfY;
+
+      // Make rotation slightly more sensitive on touch
+      targetRotY = -0.36 + touchX * 0.25;
+      targetRotX = 0.32 + touchY * 0.20;
+    }
+  }, { passive: true });
+
   // Render Loop & Immediate Frame 0 Render
   renderer.render(scene, camera);
 
@@ -750,6 +773,7 @@ function init3DKeyboard() {
     const width = container.clientWidth || 650;
     const height = container.clientHeight || 480;
     camera.aspect = width / height;
+    updateCameraViewportDistance(window.innerWidth);
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
   });

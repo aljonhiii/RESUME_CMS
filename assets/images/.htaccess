@@ -1,0 +1,5 @@
+# Block execution of PHP and script files in the uploads directory.
+# Uploaded images are served as static files only — never executed.
+<FilesMatch "\.(php|php5|php7|phtml|phar|cgi|pl|py|sh|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>

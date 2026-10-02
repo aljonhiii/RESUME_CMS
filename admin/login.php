@@ -20,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([':u' => $username]);
             $user = $stmt->fetch();
 
-            if ($user && (password_verify($password, $user['password']) || $password === 'admin' || $password === 'admin123')) {
+            if ($user && password_verify($password, $user['password'])) {
+                session_regenerate_id(true);
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_id'] = $user['id'];
                 $_SESSION['admin_username'] = $user['username'];
@@ -28,17 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: index.php');
                 exit;
             } else {
+                usleep(500000); // 0.5s delay — slows brute-force attacks
                 $error = 'Invalid username or password.';
             }
         } else {
-            // Fallback emergency login if DB fails
-            if ($username === 'admin' && ($password === 'admin' || $password === 'admin123')) {
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin_username'] = 'admin';
-                $_SESSION['admin_name'] = 'Aljon Reyes';
-                header('Location: index.php');
-                exit;
-            }
             $error = 'Database connection unavailable.';
         }
     } else {
@@ -85,11 +79,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="POST">
       <div class="form-group">
         <label>Username</label>
-        <input type="text" name="username" placeholder="admin" required value="admin">
+        <input type="text" name="username" placeholder="Username" required>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" name="password" placeholder="admin" required value="admin">
+        <input type="password" name="password" placeholder="Password" required>
       </div>
       <button type="submit" class="btn-pill" style="width:100%; justify-content:center;">
         SIGN IN <span class="arrow">→</span>

@@ -1,41 +1,95 @@
 <?php
-session_start();
-require_once __DIR__ . '/../config/db.php';
-
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/auth.php';
+require_admin_auth();
 
 $pdo = getDB();
+$page_title = 'Projects — Portfolio CMS';
+$current_page = 'projects';
 $message = '';
 $error = '';
 
-// Handle Delete
-if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
-    $id = intval($_GET['id']);
+// Handle Delete via POST (CSRF-protected)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    verify_csrf();
+    $id = intval($_POST['id']);
     if ($pdo) {
+        $stmt = $pdo->prepare("SELECT image_url FROM projects WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        $proj = $stmt->fetch();
+        if ($proj && strpos($proj['image_url'], 'assets/images/project_upload_') === 0) {
+            $imgPath = __DIR__ . '/../' . $proj['image_url'];
+            if (file_exists($imgPath)) {
+                unlink($imgPath);
+            }
+        }
         $stmt = $pdo->prepare("DELETE FROM projects WHERE id = :id");
         $stmt->execute([':id' => $id]);
-        $message = "Project ID {$id} deleted successfully.";
+        $message = "Project deleted successfully.";
     }
 }
 
 // Handle Add / Edit Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+
     $id = intval($_POST['id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
     $category = trim($_POST['category'] ?? '');
+    if (empty($category)) {
+        $category = 'Uncategorized';
+    }
     $short_description = trim($_POST['short_description'] ?? '');
     $full_description = trim($_POST['full_description'] ?? '');
     $technologies = trim($_POST['technologies'] ?? '');
-    $image_url = trim($_POST['image_url'] ?? 'assets/images/project1.svg');
+    if (empty($technologies)) {
+        $technologies = 'PHP, MySQL';
+    }
+    $image_url = trim($_POST['image_url'] ?? '');
+    if (empty($image_url)) {
+        $image_url = 'assets/images/project1.svg';
+    }
+    $demo_url = trim($_POST['demo_url'] ?? '');
+    $github_url = trim($_POST['github_url'] ?? '');
+    $featured = isset($_POST['featured']) ? 1 : 0;
+    $sort_order = intval($_POST['sort_order'] ?? 0);
+
+    // Validation — only title and short_description are strictly required
+    if (empty($title)) {
+        $error = 'Project title is required.';
+    } elseif (strlen($title) < 2 || strlen($title) > 150) {
+        $error = 'Project title must be between 2 and 150 characters.';
+    } elseif (empty($short_description)) {
+        $error = 'Short description is required.';
+    } elseif (strlen($short_description) < 5) {
+        $error = 'Short description must be at least 5 characters long.';
+    }
+
+    if (empty($error)) {
+        // Handle image upload
+        if (isset($_FILES['project_image']) && $_FILES['project_image']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['project_image']['tmp_name'];
+        $fileName = $_FILES['project_image']['name'];
+        $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
+        if (in_array($fileExtension, $allowedExtensions)) {
+            $newFileName = 'project_upload_' . time() . '_' . mt_rand(1000, 9999) . '.' . $fileExtension;
+            $uploadDir = __DIR__ . '/../assets/images/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+            $destPath = $uploadDir . $newFileName;
+
+            if (move_uploaded_file($fileTmpPath, $destPath)) {
+                $image_url = 'assets/images/' . $newFileName;
+            }
+        }
+    }
 
     if (!empty($title) && !empty($short_description)) {
         if ($pdo) {
             if ($id > 0) {
-                // Update
-                $stmt = $pdo->prepare("UPDATE projects SET title = :t, category = :c, short_description = :sd, full_description = :fd, technologies = :tech, image_url = :img WHERE id = :id");
+                $stmt = $pdo->prepare("UPDATE projects SET title = :t, category = :c, short_description = :sd, full_description = :fd, technologies = :tech, image_url = :img, demo_url = :demo, github_url = :gh, featured = :feat, sort_order = :sort WHERE id = :id");
                 $stmt->execute([
                     ':t' => $title,
                     ':c' => $category,
@@ -43,26 +97,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':fd' => $full_description,
                     ':tech' => $technologies,
                     ':img' => $image_url,
+                    ':demo' => $demo_url,
+                    ':gh' => $github_url,
+                    ':feat' => $featured,
+                    ':sort' => $sort_order,
                     ':id' => $id
                 ]);
                 $message = "Project updated successfully.";
             } else {
-                // Insert
-                $stmt = $pdo->prepare("INSERT INTO projects (title, category, short_description, full_description, technologies, image_url) VALUES (:t, :c, :sd, :fd, :tech, :img)");
+                $stmt = $pdo->prepare("INSERT INTO projects (title, category, short_description, full_description, technologies, image_url, demo_url, github_url, featured, sort_order) VALUES (:t, :c, :sd, :fd, :tech, :img, :demo, :gh, :feat, :sort)");
                 $stmt->execute([
                     ':t' => $title,
                     ':c' => $category,
                     ':sd' => $short_description,
                     ':fd' => $full_description,
                     ':tech' => $technologies,
-                    ':img' => $image_url
+                    ':img' => $image_url,
+                    ':demo' => $demo_url,
+                    ':gh' => $github_url,
+                    ':feat' => $featured,
+                    ':sort' => $sort_order
                 ]);
                 $message = "New project added successfully.";
             }
         }
-    } else {
-        $error = "Title and short description are required.";
     }
+}
 }
 
 // Fetch Projects List
@@ -81,132 +141,199 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
         $edit_project = $stmt->fetch();
     }
 }
+
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Manage Projects — Admin</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
-  <style>
-    .admin-wrapper { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-    .admin-sidebar { background: var(--bg-panel-dark); color: var(--text-light); padding: 30px 20px; }
-    .admin-sidebar h3 { font-family: var(--font-heading); font-size: 1.2rem; margin-bottom: 30px; }
-    .admin-nav { list-style: none; }
-    .admin-nav li { margin-bottom: 12px; }
-    .admin-nav a { color: #8A9A86; text-decoration: none; font-weight: 600; display: block; padding: 10px 14px; border-radius: 8px; }
-    .admin-nav a:hover, .admin-nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
-    .admin-content { padding: 40px; background: var(--bg-canvas); }
-    .card { background: var(--bg-panel); border-radius: 16px; padding: 30px; border: 1px solid var(--border-subtle); margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
-  </style>
-</head>
-<body>
-  <div class="admin-wrapper">
-    <aside class="admin-sidebar">
-      <h3>ALJON ADMIN</h3>
-      <ul class="admin-nav">
-        <li><a href="index.php">📊 Overview</a></li>
-        <li><a href="projects.php" class="active">📁 Manage Projects</a></li>
-        <li><a href="skills.php">🛠️ Manage Skills</a></li>
-        <li><a href="about.php">✍️ Edit Site Content</a></li>
-        <li><a href="messages.php">📬 Messages</a></li>
-        <li style="margin-top:40px;"><a href="logout.php" style="color:#FF5F56;">🚪 Logout</a></li>
-      </ul>
-    </aside>
 
-    <main class="admin-content">
-      <h1 class="panel-title" style="margin-bottom:24px;">PROJECT CRUD MANAGEMENT</h1>
+<div class="page-header">
+  <div class="page-title">
+    <h1>Project Management</h1>
+    <p class="page-subtitle">Organize and showcase your work in your portfolio.</p>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-primary" data-drawer-target="project-drawer" data-reset-form="true" data-drawer-title="Add New Project">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add New Project
+    </button>
+  </div>
+</div>
 
-      <?php if (!empty($message)): ?>
-        <div style="background:#5B695C; color:#fff; padding:12px; border-radius:8px; margin-bottom:20px; font-weight:600;">
-          <?= htmlspecialchars($message) ?>
-        </div>
-      <?php endif; ?>
-      
-      <?php if (!empty($error)): ?>
-        <div style="background:#FF5F56; color:#fff; padding:12px; border-radius:8px; margin-bottom:20px; font-weight:600;">
-          <?= htmlspecialchars($error) ?>
-        </div>
-      <?php endif; ?>
+<?php if (!empty($message)): ?>
+  <div class="admin-toast admin-toast-success"><?= htmlspecialchars($message) ?></div>
+<?php endif; ?>
 
-      <!-- Add / Edit Form -->
-      <div class="card">
-        <h3><?= $edit_project ? 'EDIT PROJECT #' . htmlspecialchars($edit_project['id']) : 'ADD NEW PROJECT' ?></h3>
-        <form method="POST" style="margin-top:20px;">
-          <input type="hidden" name="id" value="<?= $edit_project['id'] ?? 0 ?>">
-          
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-            <div class="form-group">
-              <label>Project Title</label>
-              <input type="text" name="title" required value="<?= htmlspecialchars($edit_project['title'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-              <label>Category</label>
-              <input type="text" name="category" placeholder="Web Application" value="<?= htmlspecialchars($edit_project['category'] ?? '') ?>">
-            </div>
-          </div>
+<?php if (!empty($error)): ?>
+  <div class="admin-toast admin-toast-error"><?= htmlspecialchars($error) ?></div>
+<?php endif; ?>
 
-          <div class="form-group">
-            <label>Technologies Used (comma separated)</label>
-            <input type="text" name="technologies" placeholder="PHP, MySQL, JavaScript" value="<?= htmlspecialchars($edit_project['technologies'] ?? '') ?>">
-          </div>
-
-          <div class="form-group">
-            <label>Image URL</label>
-            <input type="text" name="image_url" value="<?= htmlspecialchars($edit_project['image_url'] ?? 'assets/images/project1.svg') ?>">
-          </div>
-
-          <div class="form-group">
-            <label>Short Description</label>
-            <textarea name="short_description" rows="2" required><?= htmlspecialchars($edit_project['short_description'] ?? '') ?></textarea>
-          </div>
-
-          <div class="form-group">
-            <label>Full Detailed Description</label>
-            <textarea name="full_description" rows="4"><?= htmlspecialchars($edit_project['full_description'] ?? '') ?></textarea>
-          </div>
-
-          <button type="submit" class="btn-pill">
-            <?= $edit_project ? 'UPDATE PROJECT' : 'CREATE PROJECT' ?> <span class="arrow">→</span>
-          </button>
-          <?php if ($edit_project): ?>
-            <a href="projects.php" class="btn-pill" style="background:#5C5B56;">CANCEL</a>
-          <?php endif; ?>
-        </form>
-      </div>
-
-      <!-- Existing Projects Table -->
-      <div class="card">
-        <h3>EXISTING PROJECTS</h3>
-        <table>
+<!-- Projects Data Table -->
+<div class="admin-card">
+  <div class="card-header">
+    <h3>Portfolio Projects</h3>
+    <span class="badge badge-accent"><?= count($projects) ?> Total</span>
+  </div>
+  <div class="card-body" style="padding:0;">
+    <?php if (!empty($projects)): ?>
+      <div class="table-responsive">
+        <table class="admin-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th class="thumb-cell">Thumb</th>
               <th>Title</th>
               <th>Category</th>
               <th>Technologies</th>
+              <th>Featured</th>
+              <th>Order</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <?php foreach ($projects as $p): ?>
               <tr>
-                <td>#<?= $p['id'] ?></td>
-                <td><strong><?= htmlspecialchars($p['title']) ?></strong></td>
-                <td><?= htmlspecialchars($p['category']) ?></td>
-                <td><?= htmlspecialchars($p['technologies']) ?></td>
+                <td class="thumb-cell">
+                  <img src="../<?= htmlspecialchars($p['image_url'], ENT_QUOTES, 'UTF-8') ?>" alt="" class="table-thumb" onerror="this.onerror=null; this.src='../assets/images/project1.svg';">
+                </td>
                 <td>
-                  <a href="projects.php?action=edit&id=<?= $p['id'] ?>" style="color:#5B695C; font-weight:700; margin-right:12px;">Edit</a>
-                  <a href="projects.php?action=delete&id=<?= $p['id'] ?>" onclick="return confirm('Are you sure you want to delete this project?')" style="color:#FF5F56; font-weight:700;">Delete</a>
+                  <strong><?= htmlspecialchars($p['title']) ?></strong>
+                </td>
+                <td><?= htmlspecialchars($p['category']) ?></td>
+                <td>
+                  <span class="badge badge-dark"><?= htmlspecialchars($p['technologies']) ?></span>
+                </td>
+                <td>
+                  <?php if ($p['featured']): ?>
+                    <span class="badge badge-success">Featured</span>
+                  <?php else: ?>
+                    <span class="badge badge-warning">Standard</span>
+                  <?php endif; ?>
+                </td>
+                <td><?= $p['sort_order'] ?></td>
+                <td>
+                    <div class="table-actions">
+                      <button class="btn btn-sm btn-secondary"
+                        data-drawer-target="project-drawer"
+                        data-drawer-title="Edit Project #<?= $p['id'] ?>"
+                        data-id="<?= $p['id'] ?>"
+                        data-title="<?= htmlspecialchars($p['title'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-category="<?= htmlspecialchars($p['category'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-technologies="<?= htmlspecialchars($p['technologies'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-image_url="<?= htmlspecialchars($p['image_url'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-demo_url="<?= htmlspecialchars($p['demo_url'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-github_url="<?= htmlspecialchars($p['github_url'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-short_description="<?= htmlspecialchars($p['short_description'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-full_description="<?= htmlspecialchars($p['full_description'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-sort_order="<?= $p['sort_order'] ?>"
+                        data-featured="<?= $p['featured'] ?>"
+                        data-img-src="../<?= htmlspecialchars($p['image_url'], ENT_QUOTES, 'UTF-8') ?>">
+                        Edit
+                      </button>
+                      <form method="POST" style="display:inline" data-confirm="Are you sure you want to delete this project?">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                      </form>
+                    </div>
                 </td>
               </tr>
             <?php endforeach; ?>
           </tbody>
         </table>
       </div>
-    </main>
+    <?php else: ?>
+      <div style="padding:40px; text-align:center; color: var(--admin-text-muted);">
+        <p>No projects created yet. Click "Add New Project" to get started.</p>
+      </div>
+    <?php endif; ?>
   </div>
-</body>
-</html>
+</div>
+
+<!-- Slide-Over Drawer for Adding / Editing Projects -->
+<div class="admin-drawer" id="project-drawer">
+  <div class="drawer-header">
+    <h3 class="drawer-title">Add New Project</h3>
+    <button class="drawer-close" data-close-drawer>&times;</button>
+  </div>
+  <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+    <?= csrf_field() ?>
+    <div class="drawer-body">
+      <input type="hidden" name="id" value="<?= $edit_project['id'] ?? 0 ?>">
+
+      <div class="form-group">
+        <label class="form-label">Project Title</label>
+        <input type="text" name="title" class="form-control" required placeholder="e.g. 3D Architectural Showcase" value="<?= htmlspecialchars($edit_project['title'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <input type="text" name="category" class="form-control" placeholder="Web Application, 3D Interactive, API" value="<?= htmlspecialchars($edit_project['category'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Technologies (comma separated)</label>
+        <input type="text" name="technologies" class="form-control" placeholder="Three.js, PHP, WebGL, Tailwind" value="<?= htmlspecialchars($edit_project['technologies'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Upload Image / Thumbnail</label>
+        <input type="file" name="project_image" class="form-control" accept="image/*" data-preview="#drawer-img-preview">
+        <div class="img-preview-box">
+          <img id="drawer-img-preview" class="img-preview" src="<?= !empty($edit_project['image_url']) ? '../' . htmlspecialchars($edit_project['image_url']) : '' ?>" style="<?= !empty($edit_project['image_url']) ? 'display:block;' : '' ?>" alt="Preview">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Or Image URL / Path</label>
+        <input type="text" name="image_url" class="form-control" value="<?= htmlspecialchars($edit_project['image_url'] ?? 'assets/images/project1.svg') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Live Demo URL (Optional)</label>
+        <input type="url" name="demo_url" class="form-control" placeholder="https://..." value="<?= htmlspecialchars($edit_project['demo_url'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">GitHub Repository URL (Optional)</label>
+        <input type="url" name="github_url" class="form-control" placeholder="https://github.com/..." value="<?= htmlspecialchars($edit_project['github_url'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Short Description</label>
+        <textarea name="short_description" class="form-control" rows="3" required><?= htmlspecialchars($edit_project['short_description'] ?? '') ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Full Detailed Description</label>
+        <textarea name="full_description" class="form-control" rows="5"><?= htmlspecialchars($edit_project['full_description'] ?? '') ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Sort Order</label>
+        <input type="number" name="sort_order" class="form-control" value="<?= htmlspecialchars($edit_project['sort_order'] ?? 0) ?>" min="0">
+      </div>
+
+      <div class="form-group">
+        <label class="form-checkbox">
+          <input type="checkbox" name="featured" value="1" <?= ($edit_project['featured'] ?? 1) ? 'checked' : '' ?>>
+          <span>Display as Featured Project</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button type="button" class="btn btn-secondary" data-close-drawer>Cancel</button>
+      <button type="submit" class="btn btn-accent">Save Project</button>
+    </div>
+  </form>
+</div>
+
+<?php if ($edit_project): ?>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      AdminDrawer.open('project-drawer');
+    });
+  </script>
+<?php endif; ?>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

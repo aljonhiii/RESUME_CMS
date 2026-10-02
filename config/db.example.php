@@ -1,7 +1,7 @@
 <?php
 /**
  * Database Configuration & PDO Connection
- * Aljon Reyes - 3D Developer Portfolio
+ * (Example Template for GitHub)
  */
 
 class Database {
@@ -9,7 +9,7 @@ class Database {
     private $conn = null;
 
     private function __construct() {
-        // Auto-detect if we are running on local XAMPP or the live InfinityFree server
+        // Auto-detect if we are running on local XAMPP or the live server
         $is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', '192.168.1.19']);
 
         if ($is_localhost) {
@@ -19,11 +19,11 @@ class Database {
             $password = '';
             $host     = '127.0.0.1';
         } else {
-            // InfinityFree Production Settings
-            $db_name  = 'if0_43071341_resumexportflioADS';
-            $username = 'if0_43071341';
-            $password = 'pogisialjon26';
-            $host     = 'sql111.infinityfree.com';
+            // Production Settings (DO NOT COMMIT REAL PASSWORDS TO GIT)
+            $db_name  = 'YOUR_LIVE_DB_NAME';
+            $username = 'YOUR_LIVE_DB_USER';
+            $password = 'YOUR_LIVE_DB_PASSWORD';
+            $host     = 'YOUR_LIVE_DB_HOST';
         }
 
         try {

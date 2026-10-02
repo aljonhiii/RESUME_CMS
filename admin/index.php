@@ -1,15 +1,15 @@
 <?php
-session_start();
-require_once __DIR__ . '/../config/db.php';
-
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/auth.php';
+require_admin_auth();
 
 $pdo = getDB();
-$project_count = 4;
-$skill_count = 6;
+$page_title = 'Dashboard — Portfolio CMS';
+$current_page = 'index';
+
+// Fetch statistics
+$project_count = 0;
+$skill_count = 0;
+$process_count = 0;
 $message_count = 0;
 $unread_messages = 0;
 $recent_messages = [];
@@ -18,157 +18,125 @@ if ($pdo) {
     try {
         $project_count = $pdo->query("SELECT COUNT(*) FROM projects")->fetchColumn();
         $skill_count = $pdo->query("SELECT COUNT(*) FROM skills")->fetchColumn();
+        $process_count = $pdo->query("SELECT COUNT(*) FROM process_steps")->fetchColumn();
         $message_count = $pdo->query("SELECT COUNT(*) FROM contact_messages")->fetchColumn();
         $unread_messages = $pdo->query("SELECT COUNT(*) FROM contact_messages WHERE status = 'unread'")->fetchColumn();
         $recent_messages = $pdo->query("SELECT * FROM contact_messages ORDER BY id DESC LIMIT 5")->fetchAll();
     } catch (PDOException $e) {}
 }
+
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Admin Dashboard — Aljon Reyes Portfolio</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
-  <style>
-    .admin-wrapper {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
-    .admin-sidebar {
-      background: var(--bg-panel-dark);
-      color: var(--text-light);
-      padding: 30px 20px;
-    }
-    .admin-sidebar h3 {
-      font-family: var(--font-heading);
-      font-size: 1.2rem;
-      margin-bottom: 30px;
-    }
-    .admin-nav {
-      list-style: none;
-    }
-    .admin-nav li { margin-bottom: 12px; }
-    .admin-nav a {
-      color: #8A9A86;
-      text-decoration: none;
-      font-weight: 600;
-      display: block;
-      padding: 10px 14px;
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-    .admin-nav a:hover, .admin-nav a.active {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-    }
-    .admin-content {
-      padding: 40px;
-      background: var(--bg-canvas);
-    }
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-bottom: 40px;
-    }
-    .stat-card {
-      background: var(--bg-panel);
-      padding: 24px;
-      border-radius: 16px;
-      border: 1px solid var(--border-subtle);
-    }
-    .table-card {
-      background: var(--bg-panel);
-      border-radius: 16px;
-      padding: 30px;
-      border: 1px solid var(--border-subtle);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      padding: 12px 16px;
-      text-align: left;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-  </style>
-</head>
-<body>
-  <div class="admin-wrapper">
-    <aside class="admin-sidebar">
-      <h3>ALJON ADMIN</h3>
-      <ul class="admin-nav">
-        <li><a href="index.php" class="active">📊 Overview</a></li>
-        <li><a href="projects.php">📁 Manage Projects</a></li>
-        <li><a href="skills.php">🛠️ Manage Skills</a></li>
-        <li><a href="about.php">✍️ Edit Site Content</a></li>
-        <li><a href="messages.php">📬 Messages (<?= $unread_messages ?>)</a></li>
-        <li style="margin-top:40px;"><a href="logout.php" style="color:#FF5F56;">🚪 Logout</a></li>
-        <li><a href="../index.php" target="_blank" style="font-size:0.85rem; margin-top:10px;">🌐 View Main Site</a></li>
-      </ul>
-    </aside>
 
-    <main class="admin-content">
-      <h1 class="panel-title" style="margin-bottom:8px;">PORTFOLIO CONTROL CENTER</h1>
-      <p class="panel-desc" style="margin-bottom:30px;">Welcome back, <?= htmlspecialchars($_SESSION['admin_name'] ?? 'Aljon Reyes') ?></p>
-
-      <div class="stat-grid">
-        <div class="stat-card">
-          <span style="font-size:0.8rem; font-weight:700; color:var(--text-muted);">TOTAL PROJECTS</span>
-          <h2 style="font-family:var(--font-heading); font-size:2.5rem; margin-top:6px;"><?= $project_count ?></h2>
-        </div>
-        <div class="stat-card">
-          <span style="font-size:0.8rem; font-weight:700; color:var(--text-muted);">ACTIVE SKILLS</span>
-          <h2 style="font-family:var(--font-heading); font-size:2.5rem; margin-top:6px;"><?= $skill_count ?></h2>
-        </div>
-        <div class="stat-card">
-          <span style="font-size:0.8rem; font-weight:700; color:var(--text-muted);">MESSAGES RECEIVED</span>
-          <h2 style="font-family:var(--font-heading); font-size:2.5rem; margin-top:6px;"><?= $message_count ?></h2>
-        </div>
-        <div class="stat-card">
-          <span style="font-size:0.8rem; font-weight:700; color:#FF5F56;">UNREAD INQUIRIES</span>
-          <h2 style="font-family:var(--font-heading); font-size:2.5rem; margin-top:6px;"><?= $unread_messages ?></h2>
-        </div>
-      </div>
-
-      <div class="table-card">
-        <h3 style="font-family:var(--font-heading); font-size:1.4rem;">RECENT MESSAGES</h3>
-        <?php if (!empty($recent_messages)): ?>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Subject</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($recent_messages as $msg): ?>
-                <tr>
-                  <td><?= date('M d, Y H:i', strtotime($msg['created_at'])) ?></td>
-                  <td><strong><?= htmlspecialchars($msg['name']) ?></strong></td>
-                  <td><?= htmlspecialchars($msg['email']) ?></td>
-                  <td><?= htmlspecialchars($msg['subject']) ?></td>
-                  <td>
-                    <span style="padding:4px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; background:<?= $msg['status'] === 'unread' ? '#FF5F56' : '#5B695C' ?>; color:#fff;">
-                      <?= strtoupper($msg['status']) ?>
-                    </span>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        <?php else: ?>
-          <p style="margin-top:15px; color:var(--text-muted);">No messages received yet.</p>
-        <?php endif; ?>
-      </div>
-    </main>
+<div class="page-header">
+  <div class="page-title">
+    <h1>Dashboard</h1>
+    <p class="page-subtitle">Welcome back, <?= htmlspecialchars(get_admin_name()) ?>. Here is your portfolio overview.</p>
   </div>
-</body>
-</html>
+  <div class="page-actions">
+    <a href="projects.php" class="btn btn-primary">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Project
+    </a>
+    <a href="messages.php" class="btn btn-secondary">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Inquiries (<?= $unread_messages ?>)
+    </a>
+  </div>
+</div>
+
+<!-- Stat Cards Grid -->
+<div class="grid-stats">
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div class="stat-info">
+      <div class="stat-number"><?= $project_count ?></div>
+      <div class="stat-label">Total Projects</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+    </div>
+    <div class="stat-info">
+      <div class="stat-number"><?= $skill_count ?></div>
+      <div class="stat-label">Active Skills</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/></svg>
+    </div>
+    <div class="stat-info">
+      <div class="stat-number"><?= $process_count ?></div>
+      <div class="stat-label">Process Steps</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon" style="background-color: var(--admin-accent);">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+    <div class="stat-info">
+      <div class="stat-number"><?= $unread_messages ?></div>
+      <div class="stat-label">Unread Messages</div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Messages Card -->
+<div class="admin-card">
+  <div class="card-header">
+    <h3>Recent Messages</h3>
+    <a href="messages.php" class="btn btn-sm btn-secondary">View All Messages</a>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    <?php if (!empty($recent_messages)): ?>
+      <div class="table-responsive">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Subject</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($recent_messages as $msg): ?>
+              <tr>
+                <td><?= date('M d, Y', strtotime($msg['created_at'])) ?></td>
+                <td><strong><?= htmlspecialchars($msg['name']) ?></strong></td>
+                <td><?= htmlspecialchars($msg['email']) ?></td>
+                <td><?= htmlspecialchars($msg['subject'] ?? 'No Subject') ?></td>
+                <td>
+                  <?php if ($msg['status'] === 'unread'): ?>
+                    <span class="badge badge-warning">Unread</span>
+                  <?php else: ?>
+                    <span class="badge badge-success">Read</span>
+                  <?php endif; ?>
+                </td>
+                <td>
+                  <a href="messages.php" class="btn btn-sm btn-secondary">View</a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <div style="padding: 32px; text-align: center; color: var(--admin-text-muted);">
+        <p>No messages received yet.</p>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

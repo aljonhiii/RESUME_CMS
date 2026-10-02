@@ -1,21 +1,26 @@
 <?php
-session_start();
-require_once __DIR__ . '/../config/db.php';
-
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/auth.php';
+require_admin_auth();
 
 $pdo = getDB();
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo) {
-    // Handle text settings
-    foreach ($_POST as $key => $val) {
-        if ($key === 'submit') continue;
-        $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES (:k, :v) ON DUPLICATE KEY UPDATE setting_value = :v");
-        $stmt->execute([':k' => $key, ':v' => trim($val)]);
+    verify_csrf();
+    
+    // Whitelisted text settings keys
+    $allowed_keys = [
+        'hero_title_1', 'hero_title_accent', 'hero_title_2',
+        'hero_description', 'hero_portrait_img',
+        'about_heading', 'about_p1', 'about_p2', 'about_p3', 'about_p4',
+        'internship_title', 'internship_desc', 'internship_img'
+    ];
+
+    $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES (:k, :v) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    foreach ($allowed_keys as $key) {
+        if (isset($_POST[$key])) {
+            $stmt->execute([':k' => $key, ':v' => trim($_POST[$key])]);
+        }
     }
 
     // Handle Face Photo Upload
@@ -32,9 +37,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pdo) {
             
             if (move_uploaded_file($fileTmpPath, $destPath)) {
                 $imgPath = 'assets/images/' . $newFileName;
-                $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('hero_portrait_img', :v) ON DUPLICATE KEY UPDATE setting_value = :v");
+                $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('hero_portrait_img', :v) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
                 $stmt->execute([':v' => $imgPath]);
                 $message .= " Face photo uploaded successfully!";
+            }
+        }
+    }
+
+    // Handle Internship Image Upload
+    if (isset($_FILES['internship_image_file']) && $_FILES['internship_image_file']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['internship_image_file']['tmp_name'];
+        $fileName = $_FILES['internship_image_file']['name'];
+        $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
+        if (in_array($fileExtension, $allowedExtensions)) {
+            $newFileName = 'internship-preview.' . $fileExtension;
+            $uploadFileDir = __DIR__ . '/../assets/images/';
+            $destPath = $uploadFileDir . $newFileName;
+
+            if (move_uploaded_file($fileTmpPath, $destPath)) {
+                $imgPath = 'assets/images/' . $newFileName;
+                $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('internship_img', :v) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+                $stmt->execute([':v' => $imgPath]);
+                $message .= " Internship image uploaded successfully!";
             }
         }
     }
@@ -47,11 +73,15 @@ $settings = [
     'hero_title_accent' => '& SOFTWARE',
     'hero_title_2' => 'DEVELOPER',
     'hero_description' => 'Transforming ideas into practical digital experiences through web development, mobile applications, and creative technology.',
-    'hero_portrait_img' => 'assets/images/aljon-portrait.svg',
+    'hero_portrait_img' => 'assets/images/aljon-face1.png',
     'about_heading' => 'BUILDING MEANINGFUL APPLICATIONS & DIGITAL EXPERIENCES',
     'about_p1' => 'Hey, I\'m Aljon, a Computer Science student specializing in Application Development at Western Mindanao State University (WMSU).',
     'about_p2' => 'Currently pursuing my degree at WMSU, I enjoy turning complex ideas into practical working systems, designing intuitive interfaces, and developing robust database-driven applications that solve real-world problems.',
-    'about_p3' => 'My experience includes PHP 8+ and MySQL web architectures, REST APIs, cross-platform mobile development with React Native, 3D WebGL scenes, and software engineering principles.'
+    'about_p3' => 'My experience includes PHP 8+ and MySQL web architectures, REST APIs, cross-platform mobile development with React Native, 3D WebGL scenes, and software engineering principles.',
+    'about_p4' => 'Currently completing my internship training, where I apply software engineering principles, full-stack web development, and database architecture to real-world production environments.',
+    'internship_title' => 'INTERNSHIP & PRACTICAL EXPERIENCE',
+    'internship_desc' => 'Currently completing my internship training, where I apply software engineering principles, full-stack web development, and database architecture to real-world production environments.',
+    'internship_img' => 'assets/images/internship_preview.png'
 ];
 
 if ($pdo) {
@@ -103,6 +133,7 @@ if ($pdo) {
       <?php endif; ?>
 
       <form method="POST" enctype="multipart/form-data">
+        <?= csrf_field() ?>
         <div class="card">
           <h3 style="margin-bottom:20px;">DEVELOPER FACE / PORTRAIT PHOTO</h3>
           <div style="display:grid; grid-template-columns:120px 1fr; gap:20px; align-items:center;">
@@ -161,6 +192,37 @@ if ($pdo) {
           <div class="form-group">
             <label>Paragraph 3</label>
             <textarea name="about_p3" rows="3"><?= htmlspecialchars($settings['about_p3']) ?></textarea>
+          </div>
+          <div class="form-group">
+            <label>Paragraph 4 (Internship & Practical Experience)</label>
+            <textarea name="about_p4" rows="3"><?= htmlspecialchars($settings['about_p4'] ?? '') ?></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:20px;">INTERNSHIP VERTICAL FEATURE BLOCK (HEADER, IMAGE & DESCRIPTION)</h3>
+          <div class="form-group">
+            <label>Internship Header Title</label>
+            <input type="text" name="internship_title" value="<?= htmlspecialchars($settings['internship_title'] ?? 'INTERNSHIP & PRACTICAL EXPERIENCE') ?>">
+          </div>
+          <div style="display:grid; grid-template-columns:180px 1fr; gap:20px; align-items:center; margin-bottom:15px;">
+            <div style="width:180px; height:110px; background:#5B695C; border-radius:12px; overflow:hidden; border:2px solid var(--border-subtle);">
+              <img src="../<?= htmlspecialchars($settings['internship_img'] ?? 'assets/images/internship_preview.png') ?>" alt="Internship Preview" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <div>
+              <div class="form-group">
+                <label>Upload Internship Image (PNG, JPG, WEBP, SVG)</label>
+                <input type="file" name="internship_image_file" accept="image/*">
+              </div>
+              <div class="form-group">
+                <label>Or Set Custom Image Path / URL</label>
+                <input type="text" name="internship_img" value="<?= htmlspecialchars($settings['internship_img'] ?? 'assets/images/internship_preview.png') ?>">
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Internship Bold Description</label>
+            <textarea name="internship_desc" rows="3"><?= htmlspecialchars($settings['internship_desc'] ?? '') ?></textarea>
           </div>
 
           <button type="submit" name="submit" class="btn-pill">

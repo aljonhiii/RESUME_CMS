@@ -67,12 +67,8 @@ CREATE TABLE IF NOT EXISTS `contact_messages` (
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Seed Data
+-- Admin Users Table (accounts are created via setup.php on first install, not seeded here)
 
--- Admin Account: admin / admin123 (Password hashed with BCRYPT)
-INSERT INTO `admin_users` (`username`, `password`, `full_name`, `email`) 
-VALUES ('admin', '$2y$10$eE5/3gB6oN72ZkP6P.s3..1gS4T.mNqY6f3p/4b3Oa8nJz/4b3Oa', 'Aljon Reyes', 'aljonreyes.dev@gmail.com')
-ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- Default Site Settings
 INSERT INTO `site_settings` (`setting_key`, `setting_value`) VALUES
@@ -83,7 +79,8 @@ INSERT INTO `site_settings` (`setting_key`, `setting_value`) VALUES
 ('about_heading', 'BUILDING MEANINGFUL APPLICATIONS & DIGITAL EXPERIENCES'),
 ('about_p1', 'Hey, I\'m Aljon, a Computer Science student specializing in Application Development at Western Mindanao State University (WMSU).'),
 ('about_p2', 'Currently pursuing my degree at WMSU, I enjoy turning complex ideas into practical working systems, designing intuitive interfaces, and developing robust database-driven applications that solve real-world problems.'),
-('about_p3', 'My experience includes PHP 8+ and MySQL web architectures, REST APIs, cross-platform mobile development with React Native, 3D WebGL scenes, and software engineering principles.')
+('about_p3', 'My experience includes PHP 8+ and MySQL web architectures, REST APIs, cross-platform mobile development with React Native, 3D WebGL scenes, and software engineering principles.'),
+('hero_portrait_img', 'assets/images/aljon-face-developer.svg')
 ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`);
 
 -- Default Projects

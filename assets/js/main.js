@@ -36,8 +36,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     navLinks.forEach(link => {
-      link.addEventListener('click', () => {
+      link.addEventListener('click', (e) => {
         navModal.classList.remove('active');
+        const targetId = link.getAttribute('data-target') || (link.getAttribute('href') ? link.getAttribute('href').replace('#', '') : '');
+        if (targetId) {
+          const targetEl = document.getElementById(targetId);
+          if (targetEl) {
+            e.preventDefault();
+            targetEl.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
       });
     });
   }
@@ -196,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     snapSections.forEach(sec => {
       if (sec.getAttribute('id') === targetId) {
         sec.classList.add('is-active');
+        sec.classList.add('is-visible');
       } else {
         sec.classList.remove('is-active');
       }
@@ -220,28 +229,57 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if ('IntersectionObserver' in window && snapSections.length > 0) {
-    const visibleRatios = new Map();
+  // Calculate active section based on maximum visible pixels inside viewport
+  let isScrollScheduled = false;
+  function updateActiveSection() {
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    let maxVisiblePixels = -1;
+    let activeId = null;
 
+    snapSections.forEach(section => {
+      const rect = section.getBoundingClientRect();
+      const visiblePx = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+
+      if (visiblePx > 0) {
+        section.classList.add('is-visible');
+      }
+
+      if (visiblePx > maxVisiblePixels) {
+        maxVisiblePixels = visiblePx;
+        activeId = section.getAttribute('id');
+      }
+    });
+
+    if (activeId && maxVisiblePixels > 50) {
+      setActiveSection(activeId);
+    }
+  }
+
+  function onScrollRAF() {
+    if (!isScrollScheduled) {
+      isScrollScheduled = true;
+      requestAnimationFrame(() => {
+        updateActiveSection();
+        isScrollScheduled = false;
+      });
+    }
+  }
+
+  // Initial check and scroll event tracking
+  updateActiveSection();
+  window.addEventListener('scroll', onScrollRAF, { passive: true });
+  window.addEventListener('resize', onScrollRAF, { passive: true });
+
+  if ('IntersectionObserver' in window && snapSections.length > 0) {
     const sectionObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        visibleRatios.set(entry.target.getAttribute('id'), entry.intersectionRatio);
-      });
-
-      let maxRatio = 0;
-      let activeId = null;
-      visibleRatios.forEach((ratio, id) => {
-        if (ratio > maxRatio) {
-          maxRatio = ratio;
-          activeId = id;
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
         }
       });
-
-      if (activeId && maxRatio > 0.15) {
-        setActiveSection(activeId);
-      }
+      onScrollRAF();
     }, {
-      threshold: [0, 0.15, 0.35, 0.6, 0.85, 1.0]
+      threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0]
     });
 
     snapSections.forEach(section => sectionObserver.observe(section));
@@ -310,4 +348,127 @@ document.addEventListener('DOMContentLoaded', () => {
       targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
+
+  // Smooth Section-by-Section Mouse Wheel Snap Controller (Zero Jitter / Zero Fighting)
+  let isWheelLocked = false;
+  let wheelLockTimeout = null;
+
+  window.addEventListener('wheel', (e) => {
+    // Ignore wheel if user is interacting with form elements or open modals
+    const activeEl = document.activeElement;
+    if (activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) return;
+    if (document.querySelector('.modal-overlay.active') || document.querySelector('.nav-modal.active')) return;
+
+    // Filter tiny scroll noise/trackpad jitter
+    if (Math.abs(e.deltaY) < 25) return;
+
+    // Prevent default native scroll to eliminate scroll engine fighting
+    e.preventDefault();
+
+    if (isWheelLocked) return;
+
+    const sections = Array.from(document.querySelectorAll('.snap-section'));
+    if (sections.length === 0) return;
+
+    // Calculate current section index
+    const scrollY = window.scrollY;
+    let currentIndex = sections.findIndex(sec => {
+      const top = sec.offsetTop;
+      const height = sec.offsetHeight;
+      return scrollY >= top - 120 && scrollY < top + height - 120;
+    });
+
+    if (currentIndex === -1) {
+      currentIndex = sections.reduce((closestIdx, sec, idx) => {
+        const offset = Math.abs(sec.offsetTop - scrollY);
+        const closestOffset = Math.abs(sections[closestIdx].offsetTop - scrollY);
+        return offset < closestOffset ? idx : closestIdx;
+      }, 0);
+    }
+
+    let targetIndex = currentIndex;
+    if (e.deltaY > 0 && currentIndex < sections.length - 1) {
+      targetIndex = currentIndex + 1;
+    } else if (e.deltaY < 0 && currentIndex > 0) {
+      targetIndex = currentIndex - 1;
+    }
+
+    if (targetIndex !== currentIndex) {
+      isWheelLocked = true;
+      const targetSection = sections[targetIndex];
+      const targetId = targetSection.getAttribute('id');
+
+      setActiveSection(targetId);
+
+      window.scrollTo({
+        top: targetSection.offsetTop,
+        behavior: 'smooth'
+      });
+
+      clearTimeout(wheelLockTimeout);
+      wheelLockTimeout = setTimeout(() => {
+        isWheelLocked = false;
+      }, 700); // 700ms lock allowing smooth scroll transition to complete cleanly
+    }
+  }, { passive: false });
+
+  // Museum Gallery — Combined Filter + Pagination Controller
+  const PAGE_SIZE = 3;
+  const allGalleryItems = Array.from(document.querySelectorAll('.gallery-item'));
+  const galleryFilterBtns = document.querySelectorAll('.gallery-filter-btn');
+  const prevBtn = document.getElementById('gallery-prev');
+  const nextBtn = document.getElementById('gallery-next');
+  const pageCounter = document.getElementById('gallery-page-counter');
+
+  let currentPage = 0;
+  let activeFilter = 'all';
+
+  // Returns only items that pass the current filter
+  function getVisibleItems() {
+    if (activeFilter === 'all') return allGalleryItems;
+    return allGalleryItems.filter(item => item.getAttribute('data-category') === activeFilter);
+  }
+
+  function renderPage() {
+    const visibleItems = getVisibleItems();
+    const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
+
+    // Clamp currentPage
+    currentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
+
+    const start = currentPage * PAGE_SIZE;
+    const end   = start + PAGE_SIZE;
+
+    allGalleryItems.forEach(item => {
+      const inFilter = activeFilter === 'all' || item.getAttribute('data-category') === activeFilter;
+      const idx      = visibleItems.indexOf(item);
+      const onPage   = inFilter && idx >= start && idx < end;
+
+      item.classList.toggle('is-page-hidden',   !onPage);
+      item.classList.toggle('is-filtered-out',  !inFilter);
+    });
+
+    // Update pagination controls
+    if (pageCounter) pageCounter.textContent = `${currentPage + 1} / ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = currentPage === 0;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages - 1;
+  }
+
+  // Filter pill clicks
+  galleryFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      galleryFilterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.getAttribute('data-filter');
+      currentPage = 0;
+      renderPage();
+    });
+  });
+
+  // Pagination clicks
+  if (prevBtn) prevBtn.addEventListener('click', () => { currentPage--; renderPage(); });
+  if (nextBtn) nextBtn.addEventListener('click', () => { currentPage++; renderPage(); });
+
+  // Initial render
+  renderPage();
 });

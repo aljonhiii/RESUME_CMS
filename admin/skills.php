@@ -1,17 +1,17 @@
 <?php
-session_start();
-require_once __DIR__ . '/../config/db.php';
-
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/auth.php';
+require_admin_auth();
 
 $pdo = getDB();
+$page_title = 'Skills — Portfolio CMS';
+$current_page = 'skills';
 $message = '';
+$error = '';
 
-if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
-    $id = intval($_GET['id']);
+// Handle Delete via POST (CSRF-protected)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    verify_csrf();
+    $id = intval($_POST['id']);
     if ($pdo) {
         $stmt = $pdo->prepare("DELETE FROM skills WHERE id = :id");
         $stmt->execute([':id' => $id]);
@@ -19,6 +19,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     }
 }
 
+// Edit skill single fetch
 $edit_skill = null;
 if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
     $edit_id = intval($_GET['id']);
@@ -29,127 +30,195 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
     }
 }
 
+// Handle Add / Edit Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+
     $id = intval($_POST['id'] ?? 0);
     $name = trim($_POST['name'] ?? '');
     $category = trim($_POST['category'] ?? '');
-    $proficiency = trim($_POST['proficiency_display'] ?? '90%');
+    if (empty($category)) {
+        $category = 'General';
+    }
+    $proficiency = trim($_POST['proficiency_display'] ?? '');
+    if (empty($proficiency)) {
+        $proficiency = '90%';
+    }
+    $description = trim($_POST['description'] ?? '');
+    $sort_order = intval($_POST['sort_order'] ?? 0);
 
-    if (!empty($name) && $pdo) {
+    if (empty($name)) {
+        $error = 'Skill name is required.';
+    } elseif (strlen($name) < 2 || strlen($name) > 100) {
+        $error = 'Skill name must be between 2 and 100 characters.';
+    }
+
+    if (empty($error) && $pdo) {
         if ($id > 0) {
-            $stmt = $pdo->prepare("UPDATE skills SET name = :n, category = :c, proficiency_display = :p WHERE id = :id");
-            $stmt->execute([':n' => $name, ':c' => $category, ':p' => $proficiency, ':id' => $id]);
+            $stmt = $pdo->prepare("UPDATE skills SET name = :n, category = :c, proficiency_display = :p, description = :d, sort_order = :s WHERE id = :id");
+            $stmt->execute([':n' => $name, ':c' => $category, ':p' => $proficiency, ':d' => $description, ':s' => $sort_order, ':id' => $id]);
             $message = "Skill updated successfully.";
         } else {
-            $stmt = $pdo->prepare("INSERT INTO skills (name, category, proficiency_display) VALUES (:n, :c, :p)");
-            $stmt->execute([':n' => $name, ':c' => $category, ':p' => $proficiency]);
+            $stmt = $pdo->prepare("INSERT INTO skills (name, category, proficiency_display, description, sort_order) VALUES (:n, :c, :p, :d, :s)");
+            $stmt->execute([':n' => $name, ':c' => $category, ':p' => $proficiency, ':d' => $description, ':s' => $sort_order]);
             $message = "Skill added successfully.";
         }
         $edit_skill = null;
     }
 }
 
+// Fetch Skills List
 $skills = [];
 if ($pdo) {
-    $skills = $pdo->query("SELECT * FROM skills ORDER BY id ASC")->fetchAll();
+    $skills = $pdo->query("SELECT * FROM skills ORDER BY sort_order ASC, id ASC")->fetchAll();
 }
+
+// Group skills by category
+$grouped = [];
+foreach ($skills as $s) {
+    $cat = $s['category'] ?: 'Uncategorized';
+    $grouped[$cat][] = $s;
+}
+
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/sidebar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Manage Skills — Admin</title>
-  <link rel="stylesheet" href="../assets/css/style.css">
-  <style>
-    .admin-wrapper { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-    .admin-sidebar { background: var(--bg-panel-dark); color: var(--text-light); padding: 30px 20px; }
-    .admin-sidebar h3 { font-family: var(--font-heading); font-size: 1.2rem; margin-bottom: 30px; }
-    .admin-nav { list-style: none; }
-    .admin-nav li { margin-bottom: 12px; }
-    .admin-nav a { color: #8A9A86; text-decoration: none; font-weight: 600; display: block; padding: 10px 14px; border-radius: 8px; }
-    .admin-nav a:hover, .admin-nav a.active { background: rgba(255,255,255,0.1); color: #fff; }
-    .admin-content { padding: 40px; background: var(--bg-canvas); }
-    .card { background: var(--bg-panel); border-radius: 16px; padding: 30px; border: 1px solid var(--border-subtle); margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
-  </style>
-</head>
-<body>
-  <div class="admin-wrapper">
-    <aside class="admin-sidebar">
-      <h3>ALJON ADMIN</h3>
-      <ul class="admin-nav">
-        <li><a href="index.php">📊 Overview</a></li>
-        <li><a href="projects.php">📁 Manage Projects</a></li>
-        <li><a href="skills.php" class="active">🛠️ Manage Skills</a></li>
-        <li><a href="about.php">✍️ Edit Site Content</a></li>
-        <li><a href="messages.php">📬 Messages</a></li>
-        <li style="margin-top:40px;"><a href="logout.php" style="color:#FF5F56;">🚪 Logout</a></li>
-        <li><a href="../index.php" target="_blank" style="font-size:0.85rem; margin-top:10px;">🌐 View Main Site</a></li>
-      </ul>
-    </aside>
 
-    <main class="admin-content">
-      <h1 class="panel-title" style="margin-bottom:24px;">SKILLS & METRICS MANAGEMENT</h1>
-
-      <?php if (!empty($message)): ?>
-        <div style="background:#5B695C; color:#fff; padding:12px; border-radius:8px; margin-bottom:20px; font-weight:600;">
-          <?= htmlspecialchars($message) ?>
-        </div>
-      <?php endif; ?>
-
-      <div class="card">
-        <h3><?= $edit_skill ? 'EDIT SKILL #' . htmlspecialchars($edit_skill['id']) : 'ADD NEW SKILL INDICATOR' ?></h3>
-        <form method="POST" style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:15px; align-items:end;">
-          <input type="hidden" name="id" value="<?= $edit_skill['id'] ?? 0 ?>">
-          <div class="form-group" style="margin-bottom:0;">
-            <label>Skill Name</label>
-            <input type="text" name="name" placeholder="PHP" required value="<?= htmlspecialchars($edit_skill['name'] ?? '') ?>">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label>Category</label>
-            <input type="text" name="category" placeholder="Backend Development" required value="<?= htmlspecialchars($edit_skill['category'] ?? '') ?>">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label>Metric Display</label>
-            <input type="text" name="proficiency_display" placeholder="95%" value="<?= htmlspecialchars($edit_skill['proficiency_display'] ?? '') ?>">
-          </div>
-          <div>
-            <button type="submit" class="btn-pill" style="height:48px;"><?= $edit_skill ? 'UPDATE SKILL' : 'ADD SKILL' ?></button>
-            <?php if ($edit_skill): ?>
-              <a href="skills.php" class="btn-pill" style="height:48px; background:#5C5B56; text-decoration:none;">CANCEL</a>
-            <?php endif; ?>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <h3>ACTIVE SKILLS LIST</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Skill</th>
-              <th>Category</th>
-              <th>Metric Display</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($skills as $s): ?>
-              <tr>
-                <td><strong><?= htmlspecialchars($s['name']) ?></strong></td>
-                <td><?= htmlspecialchars($s['category']) ?></td>
-                <td><span style="font-family:var(--font-heading); font-size:1.2rem; font-weight:800;"><?= htmlspecialchars($s['proficiency_display']) ?></span></td>
-                <td>
-                  <a href="skills.php?action=edit&id=<?= $s['id'] ?>" style="color:#5B695C; font-weight:700; margin-right:12px;">Edit</a>
-                  <a href="skills.php?action=delete&id=<?= $s['id'] ?>" onclick="return confirm('Delete this skill?')" style="color:#FF5F56; font-weight:700;">Delete</a>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-    </main>
+<div class="page-header">
+  <div class="page-title">
+    <h1>Skills & Proficiency</h1>
+    <p class="page-subtitle">Organize tech stack metrics by category.</p>
   </div>
-</body>
-</html>
+  <div class="page-actions">
+    <button class="btn btn-primary" data-drawer-target="skill-drawer" data-reset-form="true" data-drawer-title="Add New Skill">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add New Skill
+    </button>
+  </div>
+</div>
+
+<?php if (!empty($message)): ?>
+  <div class="admin-toast admin-toast-success"><?= htmlspecialchars($message) ?></div>
+<?php endif; ?>
+
+<!-- Grouped Skills Tables -->
+<?php if (!empty($grouped)): ?>
+  <?php foreach ($grouped as $category => $cat_skills): ?>
+    <div class="admin-card">
+      <div class="card-header">
+        <h3><?= htmlspecialchars($category) ?></h3>
+        <span class="badge badge-dark"><?= count($cat_skills) ?> Skills</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Skill Name</th>
+                <th>Metric / Level</th>
+                <th>Description</th>
+                <th>Order</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($cat_skills as $s): ?>
+                <tr>
+                  <td><strong><?= htmlspecialchars($s['name']) ?></strong></td>
+                  <td>
+                    <span class="badge badge-accent" style="font-size:0.85rem; font-family:var(--font-heading);">
+                      <?= htmlspecialchars($s['proficiency_display']) ?>
+                    </span>
+                  </td>
+                  <td><?= htmlspecialchars($s['description'] ?? '—') ?></td>
+                  <td><?= $s['sort_order'] ?></td>
+                  <td>
+                    <div class="table-actions">
+                      <button class="btn btn-sm btn-secondary"
+                        data-drawer-target="skill-drawer"
+                        data-drawer-title="Edit Skill #<?= $s['id'] ?>"
+                        data-id="<?= $s['id'] ?>"
+                        data-name="<?= htmlspecialchars($s['name'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-category="<?= htmlspecialchars($s['category'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-proficiency_display="<?= htmlspecialchars($s['proficiency_display'], ENT_QUOTES, 'UTF-8') ?>"
+                        data-description="<?= htmlspecialchars($s['description'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        data-sort_order="<?= $s['sort_order'] ?>">
+                        Edit
+                      </button>
+                      <form method="POST" style="display:inline" data-confirm="Are you sure you want to delete this skill?">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="<?= $s['id'] ?>">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <?php endforeach; ?>
+<?php else: ?>
+  <div class="admin-card">
+    <div style="padding:40px; text-align:center; color: var(--admin-text-muted);">
+      <p>No skills created yet. Click "Add New Skill" to get started.</p>
+    </div>
+  </div>
+<?php endif; ?>
+
+<!-- Slide-Over Drawer for Adding / Editing Skills -->
+<div class="admin-drawer" id="skill-drawer">
+  <div class="drawer-header">
+    <h3 class="drawer-title">Add New Skill</h3>
+    <button class="drawer-close" data-close-drawer>&times;</button>
+  </div>
+  <form method="POST" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+    <?= csrf_field() ?>
+    <div class="drawer-body">
+      <input type="hidden" name="id" value="<?= $edit_skill['id'] ?? 0 ?>">
+
+      <div class="form-group">
+        <label class="form-label">Skill Name</label>
+        <input type="text" name="name" class="form-control" required placeholder="e.g. PHP, Three.js, MySQL" value="<?= htmlspecialchars($edit_skill['name'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <input type="text" name="category" class="form-control" required placeholder="Backend Development, 3D & Interactive" value="<?= htmlspecialchars($edit_skill['category'] ?? '') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Metric / Display Badge</label>
+        <input type="text" name="proficiency_display" class="form-control" placeholder="e.g. 95%, Expert, Advanced" value="<?= htmlspecialchars($edit_skill['proficiency_display'] ?? '90%') ?>">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Brief Description</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="OOP architecture, custom API design, database query optimization"><?= htmlspecialchars($edit_skill['description'] ?? '') ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Sort Order</label>
+        <input type="number" name="sort_order" class="form-control" value="<?= htmlspecialchars($edit_skill['sort_order'] ?? 0) ?>" min="0">
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button type="button" class="btn btn-secondary" data-close-drawer>Cancel</button>
+      <button type="submit" class="btn btn-accent">Save Skill</button>
+    </div>
+  </form>
+</div>
+
+<?php if ($edit_skill): ?>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      AdminDrawer.open('skill-drawer');
+    });
+  </script>
+<?php endif; ?>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

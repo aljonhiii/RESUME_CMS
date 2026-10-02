@@ -3,13 +3,20 @@
  * Aljon Reyes — 3D Developer Portfolio
  * Main Editorial Page (PHP 8+ & PDO DB Powered with Graceful Fallbacks)
  */
+
+// Security Headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
 require_once __DIR__ . '/config/db.php';
 
 $pdo = getDB();
 
 // Fallback Data Arrays if DB is initializing
 $fallback_settings = [
-    'hero_title_1' => 'CHAT-STACK',
+    'hero_title_1' => 'FULL-STACK',
     'hero_title_accent' => '& SOFTWARE',
     'hero_title_2' => 'DEVELOPER',
     'hero_description' => 'Transforming ideas into practical digital experiences through web development, mobile applications, and creative technology.',
@@ -120,7 +127,9 @@ if (empty($process_steps)) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aljon Reyes — Full-Stack Developer & Software Engineering Portfolio</title>
   <meta name="description" content="Portfolio of Aljon Reyes, Computer Technology (Application Development) student and Full-Stack Developer specializing in PHP, MySQL, Three.js, and Mobile Development.">
-  
+  <link rel="icon" type="image/png" href="assets/images/favicon_ar.png?v=<?= time() ?>">
+  <link rel="shortcut icon" type="image/png" href="assets/images/favicon_ar.png?v=<?= time() ?>">
+  <link rel="apple-touch-icon" href="assets/images/favicon_ar.png?v=<?= time() ?>">
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="assets/css/style.css">
   
@@ -130,7 +139,7 @@ if (empty($process_steps)) {
 </head>
 <body>
 
-  <!-- Floating Sticky Pill Navbar (Matching Reference Image) -->
+  <!-- Floating Sticky Pill Navbar & Mobile Navigation Trigger -->
   <header class="top-header">
     <nav class="pill-navbar">
       <a href="#home" class="nav-item active" data-target="home">HOME</a>
@@ -140,6 +149,14 @@ if (empty($process_steps)) {
       <a href="#projects" class="nav-item" data-target="projects">PROJECTS</a>
       <a href="#contact" class="nav-item trigger-contact" data-target="contact">CONTACT</a>
     </nav>
+
+    <!-- Mobile Hamburger Menu Button -->
+    <button class="menu-trigger" id="menu-trigger" aria-label="Open Navigation Menu">
+      <span>MENU</span>
+      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 1H17M1 7H17M1 13H17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
   </header>
 
   <!-- One-Page Scroll Side Navigation Dots (8 Screens) -->
@@ -181,7 +198,7 @@ if (empty($process_steps)) {
 
         <!-- Center Stadium Arch Developer Hero Frame (Matching Reference Image 1) -->
         <div class="hero-portrait-arch-frame">
-          <img src="assets/images/aljon-face1.png" alt="Aljon Reyes" class="hero-portrait-img" id="hero-portrait">
+          <img src="<?= htmlspecialchars($site_settings['hero_portrait_img'] ?? 'assets/images/aljon-face1.png') ?>" alt="Aljon Reyes" class="hero-portrait-img" id="hero-portrait">
         </div>
 
         <!-- Right Developer Overview Panel -->
@@ -345,40 +362,45 @@ if (empty($process_steps)) {
 
       <!-- Right Editorial Portrait Arch Frame -->
       <div class="process-arch-frame">
-        <img src="assets/images/aljon-face1.png" alt="Aljon Reyes Process" class="process-portrait-img">
+        <img src="<?= htmlspecialchars($site_settings['hero_portrait_img'] ?? 'assets/images/aljon-face1.png') ?>" alt="Aljon Reyes Process" class="process-portrait-img">
       </div>
     </section>
 
     <!-- About Me Editorial Section -->
     <section class="about-section snap-section" id="about">
-      <h2 class="about-title">
-        <?= htmlspecialchars($site_settings['about_heading']) ?>
-      </h2>
-      <div class="about-content">
-        <p class="about-p-highlight">
-          "<?= htmlspecialchars($site_settings['about_p1'] ?? '') ?>"
-        </p>
-        <p class="about-p-normal">
-          <?= htmlspecialchars($site_settings['about_p2'] ?? '') ?>
-        </p>
-        <p class="about-p-normal">
-          <?= htmlspecialchars($site_settings['about_p3'] ?? '') ?>
-        </p>
-        <?php if (!empty($site_settings['about_p4'])): ?>
-          <p class="about-p-normal">
-            <?= htmlspecialchars($site_settings['about_p4']) ?>
+      <div class="about-top-grid">
+        <h2 class="about-title">
+          <?= htmlspecialchars($site_settings['about_heading']) ?>
+        </h2>
+        <div class="about-content">
+          <p class="about-p-highlight">
+            "<?= htmlspecialchars($site_settings['about_p1'] ?? '') ?>"
           </p>
-        <?php endif; ?>
-        <?php if (!empty($site_settings['about_p5'])): ?>
           <p class="about-p-normal">
-            <?= htmlspecialchars($site_settings['about_p5']) ?>
+            <?= htmlspecialchars($site_settings['about_p2'] ?? '') ?>
           </p>
-        <?php endif; ?>
-        <?php if (!empty($site_settings['about_p6'])): ?>
           <p class="about-p-normal">
-            <?= htmlspecialchars($site_settings['about_p6']) ?>
+            <?= htmlspecialchars($site_settings['about_p3'] ?? '') ?>
           </p>
-        <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Two-Column Internship Feature Block (Text | Image) -->
+      <div class="internship-two-col">
+        <!-- Left: Text Column -->
+        <div class="internship-text-col">
+          <span class="internship-badge-tag">PRACTICAL EXPERIENCE</span>
+          <h3 class="internship-bold-header">
+            <?= htmlspecialchars($site_settings['internship_title'] ?? 'INTERNSHIP & PRACTICAL EXPERIENCE') ?>
+          </h3>
+          <p class="internship-bold-desc">
+            <?= htmlspecialchars($site_settings['internship_desc'] ?? $site_settings['about_p4'] ?? '') ?>
+          </p>
+        </div>
+        <!-- Right: Image Column -->
+        <div class="internship-image-frame">
+          <img src="<?= htmlspecialchars($site_settings['internship_img'] ?? 'assets/images/internship_preview.png') ?>" alt="Internship Experience" class="internship-feature-img" onerror="this.src='assets/images/aljon-face1.png'">
+        </div>
       </div>
     </section>
 
@@ -417,53 +439,84 @@ if (empty($process_steps)) {
       </div>
     </section>
 
-    <!-- Software Projects Showcase -->
+    <!-- Museum Gallery Projects Section -->
     <section class="projects-section snap-section" id="projects">
-      <div class="section-head">
-        <h2 class="section-title">FEATURED SOFTWARE PROJECTS</h2>
-        <span class="text-uppercase" style="font-size:0.85rem; font-weight:700; color:var(--text-muted);">SELECT WORKS & EXPERIENCES</span>
-      </div>
+      <div class="container">
 
-      <div class="projects-grid">
-        <?php foreach ($projects as $project): ?>
-          <article class="project-card"
-                   data-title="<?= htmlspecialchars($project['title']) ?>"
-                   data-category="<?= htmlspecialchars($project['category']) ?>"
-                   data-tech="<?= htmlspecialchars($project['technologies']) ?>"
-                   data-desc="<?= htmlspecialchars($project['full_description'] ?? $project['short_description']) ?>"
-                   data-img="<?= htmlspecialchars($project['image_url']) ?>"
-                   data-repo="<?= htmlspecialchars($project['repo_url'] ?? '#') ?>">
-            <div class="project-thumb">
-              <img src="<?= htmlspecialchars($project['image_url']) ?>" alt="<?= htmlspecialchars($project['title']) ?>" loading="lazy">
-            </div>
-            <div class="project-info">
-              <h3 class="project-title">
-                <span class="project-title-cat"><?= htmlspecialchars($project['category']) ?>:</span>
-                <?= htmlspecialchars($project['title']) ?>
-              </h3>
+        <!-- Museum-style header with year and category filters -->
+        <div class="gallery-header">
+          <div class="gallery-heading-row">
+            <h2 class="gallery-heading">Selected Works</h2>
+            <span class="gallery-year">— <?= date('Y') ?></span>
+          </div>
+          <div class="gallery-filter-row" id="gallery-filters">
+            <button class="gallery-filter-btn active" data-filter="all">All</button>
+            <?php
+              $uniqueCategories = array_unique(array_column($projects, 'category'));
+              foreach ($uniqueCategories as $cat):
+            ?>
+              <button class="gallery-filter-btn" data-filter="<?= htmlspecialchars($cat) ?>">
+                <?= htmlspecialchars($cat) ?>
+              </button>
+            <?php endforeach; ?>
+          </div>
+        </div>
 
-              <div class="project-tech-tags">
-                <?php 
-                  $tags = explode(',', $project['technologies']);
-                  foreach ($tags as $tag):
-                ?>
-                  <span class="tech-pill"><?= htmlspecialchars(trim($tag)) ?></span>
-                <?php endforeach; ?>
+        <!-- 3-up Museum Gallery Grid (3 cards per page) -->
+        <div class="gallery-museum-grid" id="gallery-grid">
+          <?php foreach ($projects as $idx => $project): ?>
+            <article class="gallery-item<?= $idx >= 3 ? ' is-page-hidden' : '' ?>"
+                     data-index="<?= $idx ?>"
+                     data-category="<?= htmlspecialchars($project['category']) ?>">
+              <div class="gallery-item-img">
+                <img src="<?= htmlspecialchars($project['image_url']) ?>"
+                     alt=""
+                     loading="lazy"
+                     onerror="this.style.display='none'">
               </div>
-
-              <p class="project-desc"><?= htmlspecialchars($project['short_description']) ?></p>
-
-              <div class="project-action">
-                <a href="<?= htmlspecialchars($project['repo_url'] ?? '#') ?>" class="btn-repo-pill" target="_blank" rel="noopener">
+              <!-- Hover Reveal Overlay -->
+              <div class="gallery-item-overlay">
+                <span class="gallery-item-cat"><?= htmlspecialchars($project['category']) ?></span>
+                <h3 class="gallery-item-title"><?= htmlspecialchars($project['title']) ?></h3>
+                <div class="gallery-item-tags">
+                  <?php foreach (array_slice(explode(',', $project['technologies']), 0, 4) as $tag): ?>
+                    <span class="tech-pill"><?= htmlspecialchars(trim($tag)) ?></span>
+                  <?php endforeach; ?>
+                </div>
+                <?php if (!empty($project['github_url']) && $project['github_url'] !== '#'): ?>
+                <a href="<?= htmlspecialchars($project['github_url']) ?>"
+                   class="btn-repo-pill" target="_blank" rel="noopener">
                   <svg class="repo-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                   </svg>
-                  <span>Repo</span>
+                  <span>GitHub Repo</span>
                 </a>
+                <?php endif; ?>
               </div>
-            </div>
-          </article>
-        <?php endforeach; ?>
+              <!-- Museum item number label -->
+              <span class="gallery-item-num"><?= sprintf('%02d', $idx + 1) ?></span>
+            </article>
+          <?php endforeach; ?>
+        </div>
+
+        <!-- Pagination Row -->
+        <div class="gallery-pagination" id="gallery-pagination">
+          <button class="gallery-page-btn" id="gallery-prev" aria-label="Previous page" disabled>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            <span>Prev</span>
+          </button>
+          <span class="gallery-page-counter" id="gallery-page-counter">1 / <?= ceil(count($projects) / 3) ?></span>
+          <button class="gallery-page-btn" id="gallery-next" aria-label="Next page"
+            <?= count($projects) <= 3 ? 'disabled' : '' ?>>
+            <span>Next</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+
       </div>
     </section>
 
@@ -489,7 +542,6 @@ if (empty($process_steps)) {
       </div>
       <div class="footer-bottom">
         <p>&copy; <?= date('Y') ?> ALJON REYES. COMPUTER TECHNOLOGY (APPLICATION DEVELOPMENT).</p>
-        <p><a href="admin/login.php" style="color:inherit; text-decoration:none; opacity:0.6;">Admin Portal</a></p>
       </div>
     </div>
   </footer>
